@@ -895,50 +895,60 @@ if st.session_state.messages:
                 if "path" in message:
                     plot_path = message["path"]
                     
-                    # Check for HTML plot files (Plotly) first
-                    html_path = plot_path.replace('.png', '.html')
-                    if os.path.exists(html_path):
-                        try:
-                            with open(html_path, 'r', encoding='utf-8') as f:
-                                html_content = f.read()
-                            # Ensure HTML content is valid and not empty
-                            if len(html_content.strip()) > 100:  # Basic validation
-                                components.html(html_content, height=600)
-                                st.success("🎯 **Interactive plot displayed successfully!**")
-                            else:
-                                st.warning("HTML plot file appears corrupted or empty.")
-                        except Exception as e:
-                            st.warning(f"Could not display HTML plot: {e}")
+                    # Check for HTML plot files (Plotly) first - try multiple possible paths
+                    html_paths = [
+                        plot_path.replace('.png', '.html'),
+                        'output/generated_plot.html',  # Default path for generated plots
+                        'output/generated_heatmap.html'  # Default path for heatmaps
+                    ]
                     
-                    # Check for PNG files
-                    elif os.path.exists(plot_path):
-                        try:
-                            file_size = os.path.getsize(plot_path)
-                            if file_size > 5000:  # At least 5KB for meaningful plot
-                                st.image(plot_path, use_column_width=True)
+                    html_displayed = False
+                    for html_path in html_paths:
+                        if os.path.exists(html_path):
+                            try:
+                                with open(html_path, 'r', encoding='utf-8') as f:
+                                    html_content = f.read()
+                                # Ensure HTML content is valid and not empty
+                                if len(html_content.strip()) > 100:  # Basic validation
+                                    components.html(html_content, height=600, scrolling=True)
+                                    st.success(f"🎯 **Interactive plot displayed successfully!** ({os.path.basename(html_path)})")
+                                    html_displayed = True
+                                    break
+                                else:
+                                    st.warning(f"HTML plot file appears corrupted or empty: {html_path}")
+                            except Exception as e:
+                                st.warning(f"Could not display HTML plot {html_path}: {e}")
+                    
+                    # Check for PNG files only if HTML wasn't displayed
+                    if not html_displayed:
+                        if os.path.exists(plot_path):
+                            try:
+                                file_size = os.path.getsize(plot_path)
+                                if file_size > 5000:  # At least 5KB for meaningful plot
+                                    st.image(plot_path, use_container_width=True)
+                                    st.success("📊 **Plot displayed successfully!**")
+                                else:
+                                    st.warning(f"Plot file is too small ({file_size} bytes). The analysis completed but plot may be corrupted.")
+                                    # Try to display anyway in case it's a valid small plot
+                                    st.image(plot_path, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Could not display plot: {e}")
+                        
+                        # Try absolute path variants  
+                        elif os.path.exists(os.path.join("output", os.path.basename(plot_path))):
+                            try:
+                                abs_path = os.path.join("output", os.path.basename(plot_path))
+                                st.image(abs_path, use_container_width=True)
                                 st.success("📊 **Plot displayed successfully!**")
-                            else:
-                                st.warning(f"Plot file is too small ({file_size} bytes). The analysis completed but plot may be corrupted.")
-                                # Try to display anyway in case it's a valid small plot
-                                st.image(plot_path, use_column_width=True)
-                        except Exception as e:
-                            st.error(f"Could not display plot: {e}")
-                    
-                    # Try absolute path variants  
-                    elif os.path.exists(os.path.join("output", os.path.basename(plot_path))):
-                        try:
-                            abs_path = os.path.join("output", os.path.basename(plot_path))
-                            st.image(abs_path, use_column_width=True)
-                            st.success("📊 **Plot displayed successfully!**")
-                        except Exception as e:
-                            st.error(f"Could not display plot from output directory: {e}")
-                    
-                    else:
-                        st.error(f"❌ **Plot file not found**: `{plot_path}`")
-                        # Debug information
-                        st.write("**Debug info:**")
-                        st.write(f"- Looking for: `{plot_path}`")
-                        st.write(f"- Alternative HTML: `{html_path}`")
+                            except Exception as e:
+                                st.error(f"Could not display plot from output directory: {e}")
+                        
+                        else:
+                            st.error(f"❌ **Plot file not found**: `{plot_path}`")
+                            # Debug information
+                            st.write("**Debug info:**")
+                            st.write(f"- Looking for: `{plot_path}`")
+                            st.write(f"- HTML paths checked: {', '.join(html_paths)}")
                         st.write(f"- Current directory files:")
                         try:
                             files = os.listdir(".")

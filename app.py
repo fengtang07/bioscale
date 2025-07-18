@@ -1,7 +1,42 @@
 import streamlit as st
 import pandas as pd
 import os
+import zipfile
 from agent import run_agent
+
+# --- Smart Dataset Loader Function ---
+def load_demo_dataset():
+    """Smart dataset loader that handles both zip and CSV files for GitHub deployment"""
+    # Try zip file first (for GitHub deployment)
+    zip_path = "GSE68086_TEP_data_matrix.csv.zip"
+    csv_path = "GSE68086_TEP_data_matrix.csv"
+    extracted_path = "GSE68086_TEP_data_matrix_extracted.csv"
+    
+    # Check if we already have an extracted version
+    if os.path.exists(extracted_path):
+        return extracted_path
+        
+    # Try to extract from ZIP file
+    if os.path.exists(zip_path):
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # Extract the CSV file
+                zip_ref.extractall(".")
+                # The extracted file should be GSE68086_TEP_data_matrix.csv
+                if os.path.exists(csv_path):
+                    # Rename to avoid conflicts and mark as extracted
+                    os.rename(csv_path, extracted_path)
+                    return extracted_path
+        except Exception as e:
+            st.error(f"Error extracting dataset: {e}")
+            return None
+    
+    # Fallback: try direct CSV file (for local development)
+    elif os.path.exists(csv_path):
+        return csv_path
+        
+    # No dataset found
+    return None
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -382,9 +417,9 @@ st.markdown("""
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "data_path" not in st.session_state:
-    # Set default dataset for demo
-    default_data_path = "/Users/dullmanatee/PycharmProjects/bioscale/GSE68086_TEP_data_matrix.csv"
-    if os.path.exists(default_data_path):
+    # Set default dataset for demo using smart loader
+    default_data_path = load_demo_dataset()
+    if default_data_path and os.path.exists(default_data_path):
         st.session_state.data_path = default_data_path
     else:
         st.session_state.data_path = None
@@ -508,8 +543,8 @@ with st.sidebar:
     
     # Reset to demo data
     if st.button("**Reset to Demo Dataset**", use_container_width=True):
-        default_data_path = "/Users/dullmanatee/PycharmProjects/bioscale/GSE68086_TEP_data_matrix.csv"
-        if os.path.exists(default_data_path):
+        default_data_path = load_demo_dataset()
+        if default_data_path and os.path.exists(default_data_path):
             st.session_state.data_path = default_data_path
             st.rerun()
     

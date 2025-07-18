@@ -669,7 +669,7 @@ st.markdown("---")
 if st.session_state.messages:
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown("### **Chat History** (Most Recent First)")
+        st.markdown("### **Chat History**")
     with col2:
         if st.button("**Clear Chat**", key="clear_chat", help="Clear all chat history"):
             st.session_state.messages = []

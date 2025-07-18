@@ -1,8 +1,28 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import os
+import json
 import zipfile
 from agent import run_agent
+
+# --- CRITICAL: Session State Initialization (must be first) ---
+# Initialize session state variables early to prevent AttributeError
+def init_session_state():
+    """Initialize session state variables safely"""
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if "data_path" not in st.session_state:
+        st.session_state.data_path = None
+    if "app_initialized" not in st.session_state:
+        st.session_state.app_initialized = False
+    if "user_choice" not in st.session_state:
+        st.session_state.user_choice = None  # Will be "protocol" or "data_analysis"
+    if "show_questions" not in st.session_state:
+        st.session_state.show_questions = False
+
+# Call initialization immediately
+init_session_state()
 
 # --- Smart Dataset Loader Function ---
 def load_demo_dataset():
@@ -37,6 +57,43 @@ def load_demo_dataset():
         
     # No dataset found
     return None
+
+# --- Protocol Display Function ---
+def display_protocol(protocol_json: str):
+    """Renders a protocol JSON object in a user-friendly format."""
+    try:
+        if '```json' in protocol_json:
+            protocol_json = protocol_json.split('```json')[1].split('```')[0].strip()
+        protocol = json.loads(protocol_json)
+    except (json.JSONDecodeError, IndexError) as e:
+        st.error(f"Failed to decode the protocol format: {e}")
+        st.code(protocol_json)
+        return
+
+    st.subheader(protocol.get("title", "Untitled Protocol"))
+    st.caption(f"Objective: {protocol.get('objective', 'Not specified')}")
+
+    with st.expander("Materials and Equipment", expanded=True):
+        materials = protocol.get("materials", {})
+        if materials:
+            for category, items in materials.items():
+                st.markdown(f"**{category}:** {items}")
+        else:
+            st.markdown("No materials listed.")
+    st.divider()
+
+    st.subheader("Procedure")
+    steps = protocol.get("steps", [])
+    if not steps:
+        st.markdown("No steps provided.")
+        return
+
+    for step in sorted(steps, key=lambda x: x.get('step_number', 0)):
+        step_title = f"**Step {step['step_number']}**"
+        if step.get('duration_minutes', 0) > 0:
+            step_title += f" *({step['duration_minutes']} min)*"
+        st.markdown(step_title)
+        st.markdown(f"> {step['description']}")
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -412,17 +469,20 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Session State Initialization ---
-# This ensures that the chat history and data path persist across reruns.
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "data_path" not in st.session_state:
-    # Set default dataset for demo using smart loader
-    default_data_path = load_demo_dataset()
-    if default_data_path and os.path.exists(default_data_path):
-        st.session_state.data_path = default_data_path
-    else:
+# --- Dataset Initialization ---
+# Load demo dataset if not already loaded
+if not st.session_state.app_initialized:
+    try:
+        default_data_path = load_demo_dataset()
+        if default_data_path and os.path.exists(default_data_path):
+            st.session_state.data_path = default_data_path
+        else:
+            st.session_state.data_path = None
+        st.session_state.app_initialized = True
+    except Exception as e:
+        st.error(f"Error loading demo dataset: {e}")
         st.session_state.data_path = None
+        st.session_state.app_initialized = True
 
 # --- Hero Section ---
 st.markdown("""
@@ -439,9 +499,17 @@ st.markdown("""
 # --- Demo Features Section ---
 st.markdown("## Platform Capabilities")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
+    st.markdown("""
+    <div class="metric-card">
+        <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">🧪 Protocols</h3>
+        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0;">Lab Procedures<br>Step-by-step protocols</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
     st.markdown("""
     <div class="metric-card">
         <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">📊 Dataset</h3>
@@ -449,7 +517,7 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-with col2:
+with col3:
     st.markdown("""
     <div class="metric-card">
         <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">🛠️ Tools</h3>
@@ -457,7 +525,7 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-with col3:
+with col4:
     st.markdown("""
     <div class="metric-card">
         <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">🤖 AI Engine</h3>
@@ -465,7 +533,7 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 
-with col4:
+with col5:
     st.markdown("""
     <div class="metric-card">
         <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">📈 Visualization</h3>
@@ -527,14 +595,20 @@ with st.sidebar:
     if st.session_state.data_path:
         st.markdown("#### Data Preview")
         try:
-            df = pd.read_csv(st.session_state.data_path, nrows=5)
-            st.dataframe(df, height=200, use_container_width=True)
+            # Read preview (5 rows) for display
+            df_preview = pd.read_csv(st.session_state.data_path, nrows=5)
+            st.dataframe(df_preview, height=200, use_container_width=True)
             
-            # Show basic stats
+            # Get actual dataset dimensions
+            df_full = pd.read_csv(st.session_state.data_path)
+            total_rows = len(df_full)
+            total_cols = len(df_full.columns)
+            
+            # Show basic stats with actual numbers
             st.markdown(f"""
             **Quick Stats:**
-            - **Rows**: {len(df)} (preview)
-            - **Columns**: {len(df.columns)}
+            - **Rows**: {total_rows:,}
+            - **Columns**: {total_cols:,}
             """)
         except Exception as e:
             st.error(f"Preview error: {e}")
@@ -550,95 +624,218 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Technical Information
-    st.markdown("#### Technical Details")
-    st.markdown("""
-    **Analysis Methods:**
-    - Verified statistical tools
-    - Dynamic code generation  
-    - Interactive Plotly visualizations
-    - Smart query routing
-    
-    **Supported Analysis:**
-    - Gene expression profiling
-    - Differential expression
-    - PCA & clustering
-    - Pathway analysis
-    - Statistical testing
-    """, help="BioScale combines verified tools with AI-generated code for comprehensive analysis")
+    # Show relevant examples based on user choice
+    if st.session_state.user_choice == "protocol":
+        st.caption("Try these protocol questions:")
+        st.code("How do I perform RNA isolation?", language=None)
+        st.code("Find a protocol for RNA-seq library prep and then customize it for low-input samples.", language=None)
+        st.code("Generate a protocol for a western blot.", language=None)
+    elif st.session_state.user_choice == "data_analysis":
+        st.caption("Try these data analysis questions:")
+        st.code("Create a PCA plot to visualize sample relationships", language=None)
+        st.code("Generate a heatmap of the most variable genes", language=None)
+        st.code("Compare gene expression between cancer types", language=None)
+    else:
+        st.caption("Choose your path above to see relevant examples!")
 
-# --- Sample Questions Section ---
-if st.session_state.data_path:
-    st.markdown("## Quick Start Analysis")
-    st.markdown("**Click any question below to see BioScale in action with instant analysis:**")
+# --- Start Selection Section ---
+if st.session_state.user_choice is None:
+    st.markdown("## Choose Your Path")
+    st.markdown("**Select what you'd like help with today:**")
     st.markdown("<br>", unsafe_allow_html=True)
     
-    sample_questions = [
-        {
-            "title": "Dataset Overview",
-            "question": "Can you give me an overview of the dataset's structure?",
-            "icon": "",
-            "description": "Get comprehensive statistics and data structure insights"
-        },
-        {
-            "title": "Variable Genes Heatmap", 
-            "question": "Generate a heatmap of the top 10 most variable genes across all samples.",
-            "icon": "",
-            "description": "Visualize the most variable genes across all samples"
-        },
-        {
-            "title": "PCA Sample Relationships",
-            "question": "Create a PCA plot to visualize the relationship between the samples.",
-            "icon": "", 
-            "description": "Explore sample clustering and cancer type relationships"
-        },
-        {
-            "title": "Top Expression Analysis",
-            "question": "Find the top 5 genes with the highest average expression across all samples and list their mean values.",
-            "icon": "",
-            "description": "Identify the most highly expressed genes in the dataset"
-        },
-        {
-            "title": "Differential Expression",
-            "question": "Create a volcano plot to show differentially expressed genes between Glioblastoma and Breast cancer samples.",
-            "icon": "",
-            "description": "Compare gene expression between cancer types"
-        }
-    ]
+    col1, col2 = st.columns(2)
     
-    # Create columns for sample questions
-    cols = st.columns(2)
-    for i, q in enumerate(sample_questions):
-        with cols[i % 2]:
-            # Create styled button
-            if st.button(
-                f"**{q['title']}**\n\n{q['description']}", 
-                key=f"sample_q_{i}", 
-                use_container_width=True,
-                help=q['question']
-            ):
-                # Add the question to chat and process it
-                st.session_state.messages.append({"role": "user", "type": "text", "content": q['question']})
-                
-                # Process the question
-                with st.spinner("BioScale agent is analyzing..."):
-                    response = run_agent(q['question'], st.session_state.data_path)
-                    st.session_state.messages.append({"role": "assistant", **response})
-                
-                st.rerun()
+    with col1:
+        st.markdown("""
+        <div class="metric-card" style="height: 300px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h2 style="color: var(--secondary-bg); margin-bottom: 1rem; text-align: center;">🧪 Lab Protocols</h2>
+                <p style="font-size: 1rem; color: var(--neutral-muted-fg); text-align: center; margin-bottom: 1rem;">
+                    Get step-by-step laboratory protocols and procedure guidance for all your experimental needs
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("**Get Lab Protocols**", key="choose_protocol", use_container_width=True, type="primary"):
+            st.session_state.user_choice = "protocol"
+            st.session_state.show_questions = True
+            st.rerun()
+    
+    with col2:
+        st.markdown("""
+        <div class="metric-card" style="height: 300px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h2 style="color: var(--secondary-bg); margin-bottom: 1rem; text-align: center;">🧬 Data Analysis</h2>
+                <p style="font-size: 1rem; color: var(--neutral-muted-fg); text-align: center; margin-bottom: 1rem;">
+                    Analyze gene expression data, create advanced visualizations, and perform comprehensive statistical analysis
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("**Start Data Analysis**", key="choose_data", use_container_width=True, type="primary"):
+            st.session_state.user_choice = "data_analysis"
+            st.session_state.show_questions = True
+            st.rerun()
+    
+    st.markdown("---")
+    st.markdown("*💡 You can always switch between data analysis and protocol help in your conversation!*")
+
+# --- Sample Questions Section (Conditional) ---
+elif st.session_state.show_questions and st.session_state.user_choice:
+    if st.session_state.user_choice == "data_analysis":
+        # Data Analysis Questions
+        if st.session_state.data_path:
+            st.markdown("## Quick Start Data Analysis")
+            st.markdown("**Click any question below to see BioScale in action with instant analysis:**")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            data_questions = [
+                {
+                    "title": "Dataset Overview",
+                    "question": "Can you give me an overview of the dataset's structure?",
+                    "description": "Get comprehensive statistics and data structure insights"
+                },
+                {
+                    "title": "Variable Genes Heatmap", 
+                    "question": "Generate a heatmap of the top 10 most variable genes across all samples.",
+                    "description": "Visualize the most variable genes across all samples"
+                },
+                {
+                    "title": "PCA Sample Relationships",
+                    "question": "Create a PCA plot to visualize the relationship between the samples.",
+                    "description": "Explore sample clustering and cancer type relationships"
+                },
+                {
+                    "title": "Top Expression Analysis",
+                    "question": "Find the top 5 genes with the highest average expression across all samples and list their mean values.",
+                    "description": "Identify the most highly expressed genes in the dataset"
+                },
+                {
+                    "title": "Differential Expression",
+                    "question": "Create a volcano plot to show differentially expressed genes between Glioblastoma and Breast cancer samples.",
+                    "description": "Compare gene expression between cancer types"
+                }
+            ]
+            
+            # Create columns for sample questions
+            cols = st.columns(2)
+            for i, q in enumerate(data_questions):
+                with cols[i % 2]:
+                    if st.button(
+                        f"**{q['title']}**\n\n{q['description']}", 
+                        key=f"data_q_{i}", 
+                        use_container_width=True,
+                        help=q['question']
+                    ):
+                        # Add the question to chat and process it
+                        st.session_state.messages.append({"role": "user", "type": "text", "content": q['question']})
+                        
+                        # Process the question
+                        with st.spinner("BioScale agent is analyzing..."):
+                            response = run_agent(q['question'], st.session_state.data_path)
+                            st.session_state.messages.append({"role": "assistant", **response})
+                        
+                        st.rerun()
+        else:
+            st.warning("**No dataset available.** Please upload a custom file or reset to the demo dataset using the sidebar to start data analysis.")
+    
+    elif st.session_state.user_choice == "protocol":
+        # Protocol Questions
+        st.markdown("## Quick Start Lab Protocols")
+        st.markdown("**Click any question below to get detailed laboratory protocols:**")
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        protocol_questions = [
+            {
+                "title": "RNA Extraction",
+                "question": "How do I perform RNA isolation from tissue samples?",
+                "description": "Get a complete RNA extraction protocol with materials and steps"
+            },
+            {
+                "title": "RNA-seq Library Prep",
+                "question": "I need a library preparation protocol for RNA-seq analysis.",
+                "description": "Detailed RNA sequencing library preparation procedure"
+            },
+            {
+                "title": "Western Blot",
+                "question": "Generate a protocol for western blot analysis.",
+                "description": "Complete western blot protocol from sample prep to detection"
+            },
+            {
+                "title": "Custom Protocol",
+                "question": "Create a custom protocol for protein extraction from cultured cells.",
+                "description": "AI-generated custom protocol tailored to your needs"
+            },
+            {
+                "title": "Low-Input RNA Protocol",
+                "question": "Find a protocol for RNA-seq library prep and then customize it for low-input samples.",
+                "description": "Specialized protocol for samples with limited RNA amounts"
+            }
+        ]
+        
+        # Create columns for protocol questions
+        cols = st.columns(2)
+        for i, q in enumerate(protocol_questions):
+            with cols[i % 2]:
+                if st.button(
+                    f"**{q['title']}**\n\n{q['description']}", 
+                    key=f"protocol_q_{i}", 
+                    use_container_width=True,
+                    help=q['question']
+                ):
+                    # Add the question to chat and process it
+                    st.session_state.messages.append({"role": "user", "type": "text", "content": q['question']})
+                    
+                    # Process the question
+                    with st.spinner("BioScale agent is processing..."):
+                        response = run_agent(q['question'], st.session_state.data_path)
+                        st.session_state.messages.append({"role": "assistant", **response})
+                    
+                    st.rerun()
+    
+    # Add option to change choice
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("**Change Selection**", key="change_choice", use_container_width=True):
+            st.session_state.user_choice = None
+            st.session_state.show_questions = False
+            st.session_state.messages = []  # Clear chat history
+            st.rerun()
     
     st.markdown("---", unsafe_allow_html=True)
 
 # --- Main Chat Interface ---
-st.markdown("## Interactive Analysis Chat")
-st.markdown("**Ask questions about your data in natural language and get instant analysis:**")
-
-# Chat input
-if st.session_state.data_path is None:
-    st.warning("**No dataset available.** Please upload a custom file or reset to the demo dataset using the sidebar.")
-    prompt = st.chat_input("Please load a dataset first to start analyzing...", disabled=True)
+if st.session_state.user_choice:
+    if st.session_state.user_choice == "data_analysis":
+        st.markdown("## Data Analysis Chat")
+        st.markdown("""
+        **🧬 Data Analysis Mode**
+        Ask questions about your gene expression data in natural language. You can request visualizations, statistical analysis, or data exploration.
+        """)
+        
+        # Chat input for data analysis
+        if st.session_state.data_path is None:
+            st.warning("**No dataset available.** Please upload a custom file or reset to the demo dataset using the sidebar.")
+            prompt = st.chat_input("Please load a dataset first to start analyzing...", disabled=True)
+        else:
+            prompt = st.chat_input("💬 Ask about your data... (e.g., 'Create a PCA plot', 'Show me the most variable genes')")
+    
+    elif st.session_state.user_choice == "protocol":
+        st.markdown("## Laboratory Protocol Chat")
+        st.markdown("""
+        **🧪 Protocol Mode**
+        Ask for laboratory protocols and procedures. Get step-by-step instructions for common lab techniques or request custom protocols.
+        """)
+        
+        # Chat input for protocols (doesn't require dataset)
+        prompt = st.chat_input("💬 Ask about lab protocols... (e.g., 'How do I extract RNA?', 'Generate a western blot protocol')")
 else:
-    prompt = st.chat_input("Ask anything about your biomedical data... (e.g., 'Compare gene expression between cancer types')")
+    # If no choice made yet, don't show chat interface
+    prompt = None
 
 # Handle user input
 if prompt:
@@ -696,14 +893,37 @@ if st.session_state.messages:
                 st.markdown(message["content"])
             elif message["type"] == "plot":
                 st.markdown(message["content"])
-                # Check if image file exists before trying to display it
-                if "path" in message and os.path.exists(message["path"]):
-                    st.image(message["path"])
+                # Robust plot display with better error handling
+                if "path" in message:
+                    plot_path = message["path"]
+                    
+                    # Check for HTML plot files (Plotly)
+                    html_path = plot_path.replace('.png', '.html')
+                    if os.path.exists(html_path):
+                        try:
+                            with open(html_path, 'r', encoding='utf-8') as f:
+                                html_content = f.read()
+                            components.html(html_content, height=600)
+                        except Exception as e:
+                            st.warning(f"Could not display HTML plot: {e}")
+                    
+                    # Check for PNG files
+                    elif os.path.exists(plot_path):
+                        try:
+                            file_size = os.path.getsize(plot_path)
+                            if file_size > 1000:  # At least 1KB
+                                st.image(plot_path)
+                            else:
+                                st.warning("Plot file is too small or corrupted. The analysis completed but plot display failed.")
+                        except Exception as e:
+                            st.warning(f"Could not display plot: {e}")
+                    else:
+                        st.info("✅ **Analysis completed successfully!** Plot was generated but file not found for display.")
                 else:
-                    st.warning("Plot image file not found. The analysis may have generated an HTML plot instead.")
+                    st.info("✅ **Analysis completed successfully!**")
             elif message["type"] == "plotly":
                 st.markdown(message["content"])
-                st.components.v1.html(message["html"], height=600)
+                components.html(message["html"], height=600)
             elif message["type"] == "json":
                 st.markdown(f"**{message['content']}**")
                 
@@ -764,21 +984,46 @@ if st.session_state.messages:
                 else:
                     # Fallback
                     st.json(data)
+            elif message["type"] == "protocol":
+                display_protocol(message["content"])
             elif message["type"] == "error":
                 st.error(message["content"])
 else:
-    # Show helpful message when no chat history exists
-    st.markdown("### **Start Your Analysis**")
-    st.info("**Use the chat box below to ask questions about your biomedical data** or try one of the sample questions to get started!")
+    # Show helpful message when no chat history exists based on user choice
+    if st.session_state.user_choice == "data_analysis":
+        st.markdown("### **Start Your Data Analysis**")
+        st.info("**Use the chat box above to ask questions about your gene expression data** or try one of the sample questions!")
+        
+        # Show data analysis examples
+        st.markdown("**💡 Example Data Analysis Questions:**")
+        data_examples = [
+            "What are the top 10 most variable genes in this dataset?",
+            "Create a volcano plot comparing two cancer types",
+            "Generate a PCA plot showing sample relationships",
+            "Show me a heatmap of the correlation between samples",
+            "Perform differential expression analysis between conditions",
+            "What are the basic statistics of this dataset?"
+        ]
+        for example in data_examples:
+            st.markdown(f"• *{example}*")
     
-    # Show some example questions as inspiration
-    st.markdown("**Example Questions:**")
-    examples = [
-        "What are the top 10 most variable genes in this dataset?",
-        "Show me a heatmap of the correlation between samples",
-        "Create a volcano plot comparing two cancer types",
-        "Perform differential expression analysis",
-        "Generate a PCA plot showing sample relationships"
-    ]
-    for example in examples:
-        st.markdown(f"• *{example}*")
+    elif st.session_state.user_choice == "protocol":
+        st.markdown("### **Start Getting Lab Protocols**")
+        st.info("**Use the chat box above to ask for laboratory protocols and procedures** or try one of the sample questions!")
+        
+        # Show protocol examples
+        st.markdown("**💡 Example Protocol Questions:**")
+        protocol_examples = [
+            "How do I perform RNA isolation from tissue samples?",
+            "Generate a protocol for western blot analysis",
+            "I need a library preparation protocol for RNA-seq",
+            "Create a custom protocol for protein extraction",
+            "Show me a protocol for cell culture maintenance",
+            "How do I prepare samples for mass spectrometry?"
+        ]
+        for example in protocol_examples:
+            st.markdown(f"• *{example}*")
+    
+    else:
+        st.markdown("### **Welcome to BioScale**")
+        st.info("**Choose your path above to get started** - select either Data Analysis or Lab Protocols to see relevant examples and begin!")

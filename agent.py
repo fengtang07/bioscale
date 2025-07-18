@@ -37,8 +37,54 @@ class RouteQuery(BaseModel):
     )
 
 
+# Load environment variables from .env file (local) or st.secrets (cloud)
+import os
+import streamlit as st
+
+# Try to load from .env file first (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available in cloud deployment
+
+# Get API key from environment or Streamlit secrets
+def get_openai_api_key():
+    # Try environment variable first (local)
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        return api_key
+    
+    # Try Streamlit secrets (cloud deployment)
+    try:
+        return st.secrets["OPENAI_API_KEY"]
+    except (KeyError, AttributeError):
+        return None
+
+# Check for OpenAI API key and provide helpful error message
+api_key = get_openai_api_key()
+if not api_key:
+    raise ValueError("""
+    ❌ OpenAI API Key Required!
+    
+    For LOCAL development:
+    1. Create a .env file in the project root with:
+       OPENAI_API_KEY=your_api_key_here
+       
+    2. Or set it as an environment variable:
+       export OPENAI_API_KEY=your_api_key_here
+    
+    For STREAMLIT CLOUD deployment:
+    1. Go to your app settings in Streamlit Cloud
+    2. Add to Secrets section:
+       OPENAI_API_KEY = "your_api_key_here"
+    
+    Get your API key from: https://platform.openai.com/api-keys
+    """)
+
 # Use a capable model for routing decisions (e.g., gpt-4o)
-router_llm = ChatOpenAI(model="gpt-4o", temperature=0)
+# Explicitly pass the API key to ensure it works in both local and cloud environments
+router_llm = ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=api_key)
 
 # Create a structured output chain that forces the LLM to output in the RouteQuery format
 structured_llm_router = router_llm.with_structured_output(RouteQuery)
@@ -95,7 +141,7 @@ def handle_protocol_request(query: str) -> Dict[str, Any]:
 
 def generate_custom_protocol(query: str) -> Dict[str, Any]:
     """Generate a custom protocol when no verified protocol is found."""
-    protocol_llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    protocol_llm = ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=api_key)
     
     protocol_prompt = f"""
     Generate a detailed laboratory protocol for: {query}
@@ -270,7 +316,7 @@ plt.close()
     ("human", "Query: {query}\nDataset path: {file_path}")
 ])
 
-coder_llm = ChatOpenAI(model="gpt-4o", temperature=0)
+coder_llm = ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=api_key)
 generative_coder_chain = generative_coder_prompt | coder_llm
 
 

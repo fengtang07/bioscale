@@ -499,45 +499,47 @@ st.markdown("""
 # --- Demo Features Section ---
 st.markdown("## Platform Capabilities")
 
-col1, col2, col3, col4, col5 = st.columns(5)
+# Responsive layout for capability boxes
+col1, col2, col3 = st.columns(3)
+col4, col5 = st.columns(2)
 
 with col1:
     st.markdown("""
-    <div class="metric-card">
-        <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">🧪 Protocols</h3>
-        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0;">Lab Procedures<br>Step-by-step protocols</p>
+    <div class="metric-card" style="min-height: 120px;">
+        <h3 style="color: var(--secondary-bg); margin-bottom: 0.75rem;">🧪 Protocols</h3>
+        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0; line-height: 1.4;">Lab Procedures<br>Step-by-step protocols</p>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-    <div class="metric-card">
-        <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">📊 Dataset</h3>
-        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0;">GSE68086 Multi-Cancer<br>57,736 genes × 285 samples</p>
+    <div class="metric-card" style="min-height: 120px;">
+        <h3 style="color: var(--secondary-bg); margin-bottom: 0.75rem;">📊 Dataset</h3>
+        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0; line-height: 1.4;">GSE68086 Multi-Cancer<br>57,736 genes × 285 samples</p>
     </div>
     """, unsafe_allow_html=True)
 
 with col3:
     st.markdown("""
-    <div class="metric-card">
-        <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">🛠️ Tools</h3>
-        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0;">Verified Functions<br>Reliable analysis methods</p>
+    <div class="metric-card" style="min-height: 120px;">
+        <h3 style="color: var(--secondary-bg); margin-bottom: 0.75rem;">🛠️ Tools</h3>
+        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0; line-height: 1.4;">Verified Functions<br>Reliable analysis methods</p>
     </div>
     """, unsafe_allow_html=True)
 
 with col4:
     st.markdown("""
-    <div class="metric-card">
-        <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">🤖 AI Engine</h3>
-        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0;">Dynamic Code Generation<br>Novel query handling</p>
+    <div class="metric-card" style="min-height: 120px;">
+        <h3 style="color: var(--secondary-bg); margin-bottom: 0.75rem;">🤖 AI Engine</h3>
+        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0; line-height: 1.4;">Dynamic Code Generation<br>Novel query handling</p>
     </div>
     """, unsafe_allow_html=True)
 
 with col5:
     st.markdown("""
-    <div class="metric-card">
-        <h3 style="color: var(--secondary-bg); margin-bottom: 0.5rem;">📈 Visualization</h3>
-        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0;">Interactive Plotly<br>Publication-ready plots</p>
+    <div class="metric-card" style="min-height: 120px;">
+        <h3 style="color: var(--secondary-bg); margin-bottom: 0.75rem;">📈 Visualization</h3>
+        <p style="font-size: 0.875rem; color: var(--neutral-muted-fg); margin: 0; line-height: 1.4;">Interactive Plotly<br>Publication-ready plots</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -648,13 +650,11 @@ if st.session_state.user_choice is None:
     
     with col1:
         st.markdown("""
-        <div class="metric-card" style="height: 300px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-                <h2 style="color: var(--secondary-bg); margin-bottom: 1rem; text-align: center;">🧪 Lab Protocols</h2>
-                <p style="font-size: 1rem; color: var(--neutral-muted-fg); text-align: center; margin-bottom: 1rem;">
-                    Get step-by-step laboratory protocols and procedure guidance for all your experimental needs
-                </p>
-            </div>
+        <div class="metric-card" style="padding: 2rem 1.5rem; text-align: center;">
+            <h2 style="color: var(--secondary-bg); margin-bottom: 1.5rem; font-size: 1.75rem;">🧪 Lab Protocols</h2>
+            <p style="font-size: 1rem; color: var(--neutral-muted-fg); margin-bottom: 2rem; line-height: 1.5;">
+                Get step-by-step laboratory protocols and procedure guidance for all your experimental needs
+            </p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -665,13 +665,11 @@ if st.session_state.user_choice is None:
     
     with col2:
         st.markdown("""
-        <div class="metric-card" style="height: 300px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-                <h2 style="color: var(--secondary-bg); margin-bottom: 1rem; text-align: center;">🧬 Data Analysis</h2>
-                <p style="font-size: 1rem; color: var(--neutral-muted-fg); text-align: center; margin-bottom: 1rem;">
-                    Analyze gene expression data, create advanced visualizations, and perform comprehensive statistical analysis
-                </p>
-            </div>
+        <div class="metric-card" style="padding: 2rem 1.5rem; text-align: center;">
+            <h2 style="color: var(--secondary-bg); margin-bottom: 1.5rem; font-size: 1.75rem;">🧬 Data Analysis</h2>
+            <p style="font-size: 1rem; color: var(--neutral-muted-fg); margin-bottom: 2rem; line-height: 1.5;">
+                Analyze gene expression data, create advanced visualizations, and perform comprehensive statistical analysis
+            </p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -893,17 +891,22 @@ if st.session_state.messages:
                 st.markdown(message["content"])
             elif message["type"] == "plot":
                 st.markdown(message["content"])
-                # Robust plot display with better error handling
+                # Enhanced plot display with robust error handling
                 if "path" in message:
                     plot_path = message["path"]
                     
-                    # Check for HTML plot files (Plotly)
+                    # Check for HTML plot files (Plotly) first
                     html_path = plot_path.replace('.png', '.html')
                     if os.path.exists(html_path):
                         try:
                             with open(html_path, 'r', encoding='utf-8') as f:
                                 html_content = f.read()
-                            components.html(html_content, height=600)
+                            # Ensure HTML content is valid and not empty
+                            if len(html_content.strip()) > 100:  # Basic validation
+                                components.html(html_content, height=600)
+                                st.success("🎯 **Interactive plot displayed successfully!**")
+                            else:
+                                st.warning("HTML plot file appears corrupted or empty.")
                         except Exception as e:
                             st.warning(f"Could not display HTML plot: {e}")
                     
@@ -911,19 +914,60 @@ if st.session_state.messages:
                     elif os.path.exists(plot_path):
                         try:
                             file_size = os.path.getsize(plot_path)
-                            if file_size > 1000:  # At least 1KB
-                                st.image(plot_path)
+                            if file_size > 5000:  # At least 5KB for meaningful plot
+                                st.image(plot_path, use_column_width=True)
+                                st.success("📊 **Plot displayed successfully!**")
                             else:
-                                st.warning("Plot file is too small or corrupted. The analysis completed but plot display failed.")
+                                st.warning(f"Plot file is too small ({file_size} bytes). The analysis completed but plot may be corrupted.")
+                                # Try to display anyway in case it's a valid small plot
+                                st.image(plot_path, use_column_width=True)
                         except Exception as e:
-                            st.warning(f"Could not display plot: {e}")
+                            st.error(f"Could not display plot: {e}")
+                    
+                    # Try absolute path variants  
+                    elif os.path.exists(os.path.join("output", os.path.basename(plot_path))):
+                        try:
+                            abs_path = os.path.join("output", os.path.basename(plot_path))
+                            st.image(abs_path, use_column_width=True)
+                            st.success("📊 **Plot displayed successfully!**")
+                        except Exception as e:
+                            st.error(f"Could not display plot from output directory: {e}")
+                    
                     else:
-                        st.info("✅ **Analysis completed successfully!** Plot was generated but file not found for display.")
+                        st.error(f"❌ **Plot file not found**: `{plot_path}`")
+                        # Debug information
+                        st.write("**Debug info:**")
+                        st.write(f"- Looking for: `{plot_path}`")
+                        st.write(f"- Alternative HTML: `{html_path}`")
+                        st.write(f"- Current directory files:")
+                        try:
+                            files = os.listdir(".")
+                            output_files = [f for f in files if f.endswith(('.png', '.html'))]
+                            for f in output_files[:5]:  # Show first 5 matching files
+                                st.write(f"  - {f}")
+                        except:
+                            st.write("  - Could not list directory")
                 else:
-                    st.info("✅ **Analysis completed successfully!**")
+                    st.warning("⚠️ **Plot was generated but no file path provided for display.**")
             elif message["type"] == "plotly":
                 st.markdown(message["content"])
-                components.html(message["html"], height=600)
+                try:
+                    if "html" in message and message["html"]:
+                        # Validate HTML content before displaying
+                        html_content = message["html"]
+                        if len(html_content.strip()) > 100:  # Basic validation
+                            components.html(html_content, height=600)
+                            st.success("🎯 **Interactive Plotly visualization displayed successfully!**")
+                        else:
+                            st.warning("Plotly HTML content appears empty or corrupted.")
+                    else:
+                        st.error("❌ **Plotly data missing or invalid.**")
+                except Exception as e:
+                    st.error(f"Could not display Plotly visualization: {e}")
+                    # Fallback: try to show raw HTML if available
+                    if "html" in message:
+                        with st.expander("Debug: View Raw HTML"):
+                            st.code(message["html"][:500] + "..." if len(message["html"]) > 500 else message["html"])
             elif message["type"] == "json":
                 st.markdown(f"**{message['content']}**")
                 
